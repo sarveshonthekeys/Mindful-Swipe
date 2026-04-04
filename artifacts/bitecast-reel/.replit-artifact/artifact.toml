@@ -1,0 +1,31 @@
+kind = "video"
+previewPath = "/bitecast-reel/"
+title = "BITECAST Instagram Reel"
+version = "1.0.0"
+id = "artifacts/bitecast-reel"
+router = "path"
+
+[[integratedSkills]]
+name = "video-js"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/bitecast-reel/" ]
+localPort = 23345
+
+[services.development]
+run = "pnpm --filter @workspace/bitecast-reel run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/bitecast-reel", "run", "build" ]
+publicDir = "artifacts/bitecast-reel/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23345"
+BASE_PATH = "/bitecast-reel/"
