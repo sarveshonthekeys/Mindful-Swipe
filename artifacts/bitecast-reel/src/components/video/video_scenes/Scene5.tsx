@@ -38,9 +38,9 @@ export function Scene5() {
             src={logo}
             alt="BITECAST"
             style={{
-              width: '22vw',
+              width: '42vw',
               height: 'auto',
-              filter: 'invert(1)',
+              filter: 'invert(1) contrast(20)',
               mixBlendMode: 'screen',
               display: 'block',
             }}
