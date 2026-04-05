@@ -33,6 +33,20 @@
   --font-body: var(--font-body);
 }
 
+html, body {
+  width: 1080px;
+  height: 1920px;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  width: 1080px;
+  height: 1920px;
+  overflow: hidden;
+}
+
 body {
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;

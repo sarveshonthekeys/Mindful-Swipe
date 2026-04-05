@@ -21,27 +21,24 @@ export default function VideoTemplate() {
   useAmbientAudio();
 
   return (
-    <div className="w-full h-screen bg-black flex justify-center items-center overflow-hidden">
-      <div
-        className="relative overflow-hidden bg-black"
-        style={{
-          aspectRatio: '9 / 16',
-          height: '100%',
-          maxHeight: '100vh',
-          maxWidth: 'calc(100vh * 9 / 16)',
-          width: 'calc(100vh * 9 / 16)',
-        }}
-      >
-        <AnimatePresence mode="popLayout">
-          {currentScene === 0 && <Scene1 key="s1" />}
-          {currentScene === 1 && <Scene2 key="s2" />}
-          {currentScene === 2 && <Scene3 key="s3" />}
-          {currentScene === 3 && <Scene4 key="s4" />}
-          {currentScene === 4 && <Scene5 key="s5" />}
-        </AnimatePresence>
+    <div
+      style={{
+        position: 'relative',
+        width: '1080px',
+        height: '1920px',
+        overflow: 'hidden',
+        background: '#000',
+      }}
+    >
+      <AnimatePresence mode="popLayout">
+        {currentScene === 0 && <Scene1 key="s1" />}
+        {currentScene === 1 && <Scene2 key="s2" />}
+        {currentScene === 2 && <Scene3 key="s3" />}
+        {currentScene === 3 && <Scene4 key="s4" />}
+        {currentScene === 4 && <Scene5 key="s5" />}
+      </AnimatePresence>
 
-        <Grain opacity={0.04} />
-      </div>
+      <Grain opacity={0.04} />
     </div>
   );
 }
