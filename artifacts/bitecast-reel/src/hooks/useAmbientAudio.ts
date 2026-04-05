@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 
-// ─── Primitives ───────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function noise(ctx: AudioContext, dur: number): AudioBuffer {
+function makeNoise(ctx: AudioContext, dur: number): AudioBuffer {
   const len = Math.ceil(ctx.sampleRate * dur);
   const buf = ctx.createBuffer(1, len, ctx.sampleRate);
   const d = buf.getChannelData(0);
@@ -10,199 +10,126 @@ function noise(ctx: AudioContext, dur: number): AudioBuffer {
   return buf;
 }
 
-/** Finger swipe / scroll whoosh */
-function playSwipe(ctx: AudioContext, dest: AudioNode, t: number, vol = 1.0) {
-  const src = ctx.createBufferSource();
-  src.buffer = noise(ctx, 0.065);
-  const lpf = ctx.createBiquadFilter();
-  lpf.type = 'lowpass'; lpf.frequency.value = 2400; lpf.Q.value = 1.2;
-  const hpf = ctx.createBiquadFilter();
-  hpf.type = 'highpass'; hpf.frequency.value = 280;
-  const env = ctx.createGain();
-  env.gain.setValueAtTime(0, t);
-  env.gain.linearRampToValueAtTime(0.16 * vol, t + 0.005);
-  env.gain.exponentialRampToValueAtTime(0.001, t + 0.065);
-  src.connect(lpf); lpf.connect(hpf); hpf.connect(env); env.connect(dest);
-  src.start(t);
-}
-
-/** Light UI tap click */
-function playTap(ctx: AudioContext, dest: AudioNode, t: number) {
-  const src = ctx.createBufferSource();
-  src.buffer = noise(ctx, 0.016);
-  const bpf = ctx.createBiquadFilter();
-  bpf.type = 'bandpass'; bpf.frequency.value = 2200; bpf.Q.value = 5;
-  const env = ctx.createGain();
-  env.gain.setValueAtTime(0, t);
-  env.gain.linearRampToValueAtTime(0.045, t + 0.002);
-  env.gain.exponentialRampToValueAtTime(0.001, t + 0.016);
-  src.connect(bpf); bpf.connect(env); env.connect(dest);
-  src.start(t);
-}
-
-/** Notification ping — short sine chime */
-function playPing(ctx: AudioContext, dest: AudioNode, t: number, freq: number, vol = 1.0) {
-  const osc = ctx.createOscillator();
-  osc.type = 'sine'; osc.frequency.value = freq;
-  const env = ctx.createGain();
-  env.gain.setValueAtTime(0, t);
-  env.gain.linearRampToValueAtTime(0.038 * vol, t + 0.007);
-  env.gain.exponentialRampToValueAtTime(0.001, t + 0.19);
-  osc.connect(env); env.connect(dest);
-  osc.start(t); osc.stop(t + 0.2);
-}
-
-/** Digital glitch — staggered noise bursts with rising frequency */
-function playGlitch(ctx: AudioContext, dest: AudioNode, t: number, intensity = 1.0) {
-  const count = Math.round(4 + intensity * 2);
-  for (let i = 0; i < count; i++) {
-    const bt = t + i * 0.015;
-    const src = ctx.createBufferSource();
-    src.buffer = noise(ctx, 0.013);
-    const bpf = ctx.createBiquadFilter();
-    bpf.type = 'bandpass';
-    bpf.frequency.value = 500 + (i / count) * 2800;
-    const env = ctx.createGain();
-    const v = Math.max(0.001, 0.09 * intensity * (1 - i * 0.1));
-    env.gain.setValueAtTime(v, bt);
-    env.gain.exponentialRampToValueAtTime(0.001, bt + 0.013);
-    src.connect(bpf); bpf.connect(env); env.connect(dest);
-    src.start(bt);
-  }
-}
-
-/** Soft cinematic impact — deep sub boom + body noise */
+/** Soft cinematic sub-boom — smooth pitch fall, gentle noise body */
 function playCinematicImpact(ctx: AudioContext, dest: AudioNode, t: number) {
   const osc = ctx.createOscillator();
-  osc.frequency.setValueAtTime(68, t);
-  osc.frequency.exponentialRampToValueAtTime(22, t + 0.6);
+  osc.frequency.setValueAtTime(62, t);
+  osc.frequency.exponentialRampToValueAtTime(20, t + 0.7);
   const env = ctx.createGain();
   env.gain.setValueAtTime(0, t);
-  env.gain.linearRampToValueAtTime(0.42, t + 0.012);
-  env.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
+  env.gain.linearRampToValueAtTime(0.38, t + 0.018);
+  env.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
   osc.connect(env); env.connect(dest);
-  osc.start(t); osc.stop(t + 0.7);
+  osc.start(t); osc.stop(t + 0.85);
 
   const src = ctx.createBufferSource();
-  src.buffer = noise(ctx, 0.45);
+  src.buffer = makeNoise(ctx, 0.6);
   const lpf = ctx.createBiquadFilter();
-  lpf.type = 'lowpass'; lpf.frequency.value = 450;
+  lpf.type = 'lowpass'; lpf.frequency.value = 380;
   const nEnv = ctx.createGain();
   nEnv.gain.setValueAtTime(0, t);
-  nEnv.gain.linearRampToValueAtTime(0.11, t + 0.012);
-  nEnv.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+  nEnv.gain.linearRampToValueAtTime(0.09, t + 0.018);
+  nEnv.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
   src.connect(lpf); lpf.connect(nEnv); nEnv.connect(dest);
   src.start(t);
 }
 
 // ─── 15-second sequence ───────────────────────────────────────────────────────
 //
-//  0–2s   Gentle scrolling sounds + faint digital hum
-//  2–6s   Escalating chaos: fast swipes, pings, glitch distortion
-//  6–7s   HARD CUT — complete silence (no fade, no tail)
-//  7–10s  Near silence — barely audible atmospheric pad
-//  10–15s Soft cinematic impact + calm pad fade out
+//  0–6s   ONE continuous rising synth sound with accelerating tremolo pulse
+//  6s     Instant hard cut — seq gain snaps to 0, no tail
+//  7–15s  Calm sine-wave pad + cinematic impact at 10s
 //
 function scheduleSequence(ctx: AudioContext, dest: AudioNode, stopped: { v: boolean }) {
   if (stopped.v) return;
   const T = ctx.currentTime + 0.02;
 
-  // Each iteration gets its own gain wrapper so AudioParam events don't accumulate
+  // Per-run gate — hard cut at 6s, opens again at 10s for impact
   const seq = ctx.createGain();
   seq.connect(dest);
-  // Full volume 0–5.999s
   seq.gain.setValueAtTime(1.0, T);
-  // Hard cut at 6s — no ramp, no tail
-  seq.gain.setValueAtTime(1.0, T + 5.999);
-  seq.gain.setValueAtTime(0.0, T + 6.0);
-  // Open for cinematic section at 10s
-  seq.gain.setValueAtTime(0.75, T + 10.0);
-  seq.gain.exponentialRampToValueAtTime(0.001, T + 14.8);
+  seq.gain.setValueAtTime(1.0, T + 5.999); // hold until last sample
+  seq.gain.setValueAtTime(0.0, T + 6.0);   // hard cut — no ramp
+  seq.gain.setValueAtTime(0.7, T + 10.0);  // open for impact
+  seq.gain.exponentialRampToValueAtTime(0.001, T + 14.9);
 
-  // ── 0–2s: faint digital ambient hum + slow scrolling ─────────────────────
-  const ambLpf = ctx.createBiquadFilter();
-  const ambGain = ctx.createGain();
-  ambLpf.type = 'lowpass'; ambLpf.frequency.value = 320; ambLpf.Q.value = 3;
-  ambGain.gain.setValueAtTime(0, T);
-  ambGain.gain.linearRampToValueAtTime(0.02, T + 0.7);
-  ambGain.gain.linearRampToValueAtTime(0.05, T + 5.6);
-  ambGain.gain.setValueAtTime(0.05, T + 5.999);
-  ambGain.gain.setValueAtTime(0, T + 6.0); // hard cut on the hum too
-  [160, 161.6].forEach(freq => {
+  // ── 0–6s: single continuous rising ambient synth ──────────────────────────
+  //
+  // Two detuned sawtooth oscillators whose pitch slowly rises (80→145 Hz),
+  // run through a low-pass filter whose cutoff opens up (280→1100 Hz),
+  // giving the sensation of a hum evolving into something more present.
+  //
+  // A tremolo LFO creates the rhythmic pulse texture:
+  //   frequency sweeps 0.4 → 4 Hz (slow heartbeat → fast throb)
+  //   depth grows 0.02 → 0.22 (barely perceptible → noticeable)
+  // The main volume envelope rises gently from silence to a moderate peak.
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(280, T);
+  filter.frequency.linearRampToValueAtTime(1100, T + 6.0);
+  filter.Q.value = 1.8;
+
+  const baseGain = ctx.createGain();
+  baseGain.gain.setValueAtTime(0, T);
+  baseGain.gain.linearRampToValueAtTime(0.28, T + 1.0);   // fade in
+  baseGain.gain.linearRampToValueAtTime(0.42, T + 6.0);   // slow rise
+
+  const tremoloGain = ctx.createGain();
+  tremoloGain.gain.setValueAtTime(1.0, T); // base value; LFO adds on top
+
+  // LFO — sine wave modulating tremoloGain.gain audio-rate
+  const lfo = ctx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.setValueAtTime(0.4, T);
+  lfo.frequency.linearRampToValueAtTime(4.2, T + 5.8); // accelerating pulse
+
+  const lfoDepth = ctx.createGain();
+  lfoDepth.gain.setValueAtTime(0.02, T);
+  lfoDepth.gain.linearRampToValueAtTime(0.22, T + 5.8); // depth grows
+  lfo.connect(lfoDepth);
+  lfoDepth.connect(tremoloGain.gain); // audio-rate modulation of gain
+
+  // Oscillators: two detuned voices for thickness
+  [[80, 'sawtooth'], [80.6, 'triangle']].forEach(([freq, type]) => {
     const osc = ctx.createOscillator();
-    osc.type = 'sawtooth'; osc.frequency.value = freq;
-    osc.connect(ambLpf);
+    osc.type = type as OscillatorType;
+    osc.frequency.setValueAtTime(freq as number, T);
+    osc.frequency.linearRampToValueAtTime((freq as number) * 1.81, T + 6.0); // ~octave + 2nd
+    osc.connect(filter);
     osc.start(T); osc.stop(T + 6.01);
   });
-  ambLpf.connect(ambGain); ambGain.connect(seq);
 
-  // Slow, subtle scroll sounds
-  playSwipe(ctx, seq, T + 0.25, 0.5);
-  playTap(ctx, seq,   T + 0.85);
-  playSwipe(ctx, seq, T + 1.35, 0.55);
-  playTap(ctx, seq,   T + 1.82);
+  // Wire build chain
+  filter.connect(baseGain);
+  baseGain.connect(tremoloGain);
+  tremoloGain.connect(seq);
+  lfo.start(T); lfo.stop(T + 6.0);
 
-  // ── 2–6s: escalating chaos ───────────────────────────────────────────────
-  // Phase 1: ~every 0.36s (2.0–3.0s)
-  for (let t = 2.1; t < 3.0; t += 0.36) {
-    playSwipe(ctx, seq, T + t, 0.7);
-  }
+  // ── 6–7s: absolute silence (enforced by seq.gain = 0) ────────────────────
 
-  // Phase 2: ~every 0.2s, rising volume (3.0–4.5s)
-  let v2 = 0.78;
-  for (let t = 3.05; t < 4.5; t += 0.2) {
-    playSwipe(ctx, seq, T + t, v2);
-    v2 = Math.min(1.0, v2 + 0.022);
-  }
-
-  // Phase 3: rapid-fire, accelerating (4.5–5.98s)
-  {
-    let t = 4.5, dt = 0.115, v3 = 0.95;
-    while (t < 5.98) {
-      playSwipe(ctx, seq, T + t, v3);
-      t += dt;
-      dt = Math.max(0.038, dt * 0.935);
-      v3 = Math.min(1.2, v3 + 0.012);
-    }
-  }
-
-  // Notification pings — sparse at first, flooding at peak
-  const pings: [number, number, number][] = [
-    [2.45, 1380, 0.7], [3.2, 1620, 0.8],  [3.85, 1280, 0.9],
-    [4.35, 1840, 0.95],[4.72, 1500, 1.0], [5.02, 2050, 1.0],
-    [5.22, 1350, 1.0], [5.42, 1780, 1.0], [5.6,  1950, 1.0],
-    [5.76, 2250, 1.0], [5.9,  1600, 1.0],
-  ];
-  pings.forEach(([t, f, v]) => playPing(ctx, seq, T + t, f, v));
-
-  // Glitch bursts — increase intensity toward the cut
-  const glitches: [number, number][] = [
-    [3.5, 0.45], [4.2, 0.75], [4.88, 1.1], [5.32, 1.45], [5.72, 1.8],
-  ];
-  glitches.forEach(([t, i]) => playGlitch(ctx, seq, T + t, i));
-
-  // ── 6–7s: enforced by seq.gain = 0 ───────────────────────────────────────
-
-  // ── 7–10s: barely-audible pad — bypass seq gain, go direct ───────────────
-  const padLpf = ctx.createBiquadFilter();
+  // ── 7–15s: calm sine pad — bypass seq gate (direct to dest) ──────────────
+  const padFilter = ctx.createBiquadFilter();
+  padFilter.type = 'lowpass'; padFilter.frequency.value = 420; padFilter.Q.value = 1.5;
   const padGain = ctx.createGain();
-  padLpf.type = 'lowpass'; padLpf.frequency.value = 480; padLpf.Q.value = 2;
   padGain.gain.setValueAtTime(0, T + 7.0);
-  padGain.gain.linearRampToValueAtTime(0.014, T + 8.5);
-  padGain.gain.linearRampToValueAtTime(0.01, T + 15.0);
-  [110, 165].forEach((freq, i) => {
+  padGain.gain.linearRampToValueAtTime(0.013, T + 9.0);  // gentle fade in
+  padGain.gain.linearRampToValueAtTime(0.01, T + 15.0);  // stable through end
+  // Three clean harmonics for warmth
+  [[110, 'sine'], [165, 'sine'], [220, 'triangle']].forEach(([freq, type]) => {
     const osc = ctx.createOscillator();
-    osc.type = i === 0 ? 'triangle' : 'sine';
-    osc.frequency.value = freq;
-    osc.connect(padLpf);
+    osc.type = type as OscillatorType;
+    osc.frequency.value = freq as number;
+    osc.connect(padFilter);
     osc.start(T + 7.0); osc.stop(T + 15.1);
   });
-  padLpf.connect(padGain); padGain.connect(dest); // direct — unaffected by seq gate
+  padFilter.connect(padGain);
+  padGain.connect(dest); // direct — unaffected by seq gate
 
-  // ── 10–15s: cinematic impact ──────────────────────────────────────────────
+  // ── 10s: soft cinematic impact ────────────────────────────────────────────
   playCinematicImpact(ctx, seq, T + 10.0);
 
-  // ── Loop ──────────────────────────────────────────────────────────────────
+  // ── Loop at 15s ───────────────────────────────────────────────────────────
   setTimeout(() => {
     if (!stopped.v && ctx.state !== 'closed') {
       scheduleSequence(ctx, dest, stopped);
@@ -221,7 +148,7 @@ export function useAmbientAudio() {
       if (ctx) return;
       ctx = new AudioContext();
       const comp = ctx.createDynamicsCompressor();
-      comp.threshold.value = -14; comp.ratio.value = 3; comp.knee.value = 10;
+      comp.threshold.value = -14; comp.ratio.value = 3; comp.knee.value = 12;
       comp.connect(ctx.destination);
       scheduleSequence(ctx, comp, stopped);
     }
