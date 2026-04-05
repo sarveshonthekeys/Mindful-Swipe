@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import logo from '@assets/logo_1775409309589.jpeg';
+import logo from '@assets/logo-removebg-preview_1775409673310.png';
 
 export function Scene5() {
   const [phase, setPhase] = useState(0);
@@ -40,8 +40,7 @@ export function Scene5() {
             style={{
               width: '42vw',
               height: 'auto',
-              filter: 'invert(1) contrast(20)',
-              mixBlendMode: 'screen',
+              filter: 'invert(1)',
               display: 'block',
             }}
           />
