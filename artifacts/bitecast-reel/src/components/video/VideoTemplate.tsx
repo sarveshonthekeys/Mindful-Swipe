@@ -18,12 +18,17 @@ export default function VideoTemplate() {
   const { currentScene } = useVideoPlayer({ durations: SCENE_DURATIONS });
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-black flex justify-center items-center">
-      {/* Container forcing 9:16 aspect ratio internally if viewed on wide screens, 
-          though the request says to build for 9:16 natively. We just fill the screen
-          and assume the container provides a 9:16 viewport (like Instagram Reel) */}
-      <div className="relative w-full h-full overflow-hidden bg-black">
-        
+    <div className="w-full h-screen bg-black flex justify-center items-center overflow-hidden">
+      <div
+        className="relative overflow-hidden bg-black"
+        style={{
+          aspectRatio: '9 / 16',
+          height: '100%',
+          maxHeight: '100vh',
+          maxWidth: 'calc(100vh * 9 / 16)',
+          width: 'calc(100vh * 9 / 16)',
+        }}
+      >
         <AnimatePresence mode="popLayout">
           {currentScene === 0 && <Scene1 key="s1" />}
           {currentScene === 1 && <Scene2 key="s2" />}
@@ -31,7 +36,6 @@ export default function VideoTemplate() {
           {currentScene === 3 && <Scene4 key="s4" />}
           {currentScene === 4 && <Scene5 key="s5" />}
         </AnimatePresence>
-
       </div>
     </div>
   );
