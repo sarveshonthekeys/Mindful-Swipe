@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
+import logo from '@assets/logo_1775409309589.jpeg';
 
 export function Scene5() {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
-    const t = setTimeout(() => setPhase(1), 1500);
+    const t = setTimeout(() => setPhase(1), 1200);
     return () => clearTimeout(t);
   }, []);
 
@@ -19,19 +20,38 @@ export function Scene5() {
     >
       {/* Subtle background glow */}
       <motion.div 
-        className="absolute w-[80vw] h-[80vw] rounded-full opacity-10 blur-[80px]"
+        className="absolute w-[80vw] h-[80vw] rounded-full blur-[80px]"
         style={{ background: 'radial-gradient(circle, #ffffff, transparent)' }}
         initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1.2, opacity: 0.15 }}
+        animate={{ scale: 1.2, opacity: 0.12 }}
         transition={{ duration: 4, ease: "easeOut" }}
       />
 
-      <div className="relative z-10 w-full px-8 flex flex-col items-center justify-center gap-6">
+      <div className="relative z-10 w-full px-8 flex flex-col items-center justify-center gap-4">
+        {/* Logo mark */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.7 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <img
+            src={logo}
+            alt="BITECAST"
+            style={{
+              width: '22vw',
+              height: 'auto',
+              filter: 'invert(1)',
+              mixBlendMode: 'screen',
+              display: 'block',
+            }}
+          />
+        </motion.div>
+
         <motion.h1 
           className="text-[16vw] font-extrabold text-white tracking-[0.1em] uppercase"
           initial={{ opacity: 0, scale: 0.9, letterSpacing: "0em" }}
           animate={{ opacity: 1, scale: 1, letterSpacing: "0.1em" }}
-          transition={{ duration: 2, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 2, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
           style={{ fontFamily: 'var(--font-display)' }}
         >
           BITECAST
