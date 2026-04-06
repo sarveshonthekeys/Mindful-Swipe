@@ -7,8 +7,9 @@ export function Scene5() {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
-    const t = setTimeout(() => setPhase(1), 1200);
-    return () => clearTimeout(t);
+    const t1 = setTimeout(() => setPhase(1), 1200);
+    const t2 = setTimeout(() => setPhase(2), 2400);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
   return (
@@ -66,6 +67,24 @@ export function Scene5() {
         >
           Make every swipe count.
         </motion.p>
+
+        {/* Coming Soon */}
+        <motion.div
+          className="flex flex-col items-center gap-3 mt-6"
+          initial={{ opacity: 0, y: 16 }}
+          animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+          transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <motion.div
+            style={{ width: phase >= 2 ? '120px' : '0px', height: '1px', background: 'rgba(255,255,255,0.25)', transition: 'width 1s cubic-bezier(0.16,1,0.3,1) 0.2s' }}
+          />
+          <p
+            className="text-[36px] font-light text-white/40 tracking-[0.35em] uppercase"
+            style={{ fontFamily: 'var(--font-body)' }}
+          >
+            Coming Soon
+          </p>
+        </motion.div>
       </div>
     </motion.div>
   );
