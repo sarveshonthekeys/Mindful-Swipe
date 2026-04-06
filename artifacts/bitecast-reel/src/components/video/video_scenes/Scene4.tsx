@@ -30,7 +30,7 @@ export function Scene4() {
 
       <div className="relative z-10 w-full px-8 text-center">
         <motion.h2
-          className="text-[12vw] font-medium text-white leading-tight tracking-tight"
+          className="text-[130px] font-medium text-white leading-tight tracking-tight"
           initial={{ opacity: 0, y: 10, filter: 'blur(10px)' }}
           animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}

@@ -23,7 +23,7 @@ export function Scene1() {
 
       <div className="relative z-10 w-full px-8 text-center flex flex-col items-center">
         <motion.h1 
-          className="text-[10vw] font-bold text-white leading-[1.1] tracking-tight"
+          className="text-[108px] font-bold text-white leading-[1.1] tracking-tight"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}

@@ -34,16 +34,17 @@
 }
 
 html, body {
-  width: 1080px;
-  height: 1920px;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   margin: 0;
   padding: 0;
+  background: #000;
 }
 
 #root {
-  width: 1080px;
-  height: 1920px;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -67,7 +68,7 @@ body {
     opacity: 0.6;
   }
   100% {
-    transform: translateY(-110vh) translateX(var(--drift, 0px));
+    transform: translateY(-2200px) translateX(var(--drift, 0px));
     opacity: 0;
   }
 }

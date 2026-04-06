@@ -36,7 +36,7 @@ export function Scene2() {
         className="relative z-10 w-full px-10 text-center flex flex-col items-center gap-6"
       >
         <motion.p
-          className="text-[6vw] font-medium text-white/80 tracking-widest uppercase"
+          className="text-[65px] font-medium text-white/80 tracking-widest uppercase"
           initial={{ opacity: 0, filter: 'blur(10px)' }}
           animate={{ opacity: 1, filter: 'blur(0px)' }}
           transition={{ duration: 0.8, ease: "easeOut" }}
@@ -46,7 +46,7 @@ export function Scene2() {
         </motion.p>
 
         <motion.p
-          className="text-[7vw] font-semibold text-white/90 tracking-widest uppercase"
+          className="text-[76px] font-semibold text-white/90 tracking-widest uppercase"
           initial={{ opacity: 0, filter: 'blur(10px)' }}
           animate={phase >= 1 ? { opacity: 1, filter: 'blur(0px)', scale: 1.1 } : { opacity: 0, filter: 'blur(10px)', scale: 1 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
@@ -56,7 +56,7 @@ export function Scene2() {
         </motion.p>
 
         <motion.p
-          className="text-[9vw] font-bold text-white tracking-widest uppercase text-red-500"
+          className="text-[97px] font-bold text-white tracking-widest uppercase text-red-500"
           initial={{ opacity: 0, filter: 'blur(10px)' }}
           animate={phase >= 2 ? { opacity: 1, filter: 'blur(0px)', scale: 1.2 } : { opacity: 0, filter: 'blur(10px)', scale: 1 }}
           transition={{ duration: 0.4, ease: "easeOut" }}

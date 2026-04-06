@@ -39,7 +39,7 @@ export function Scene5() {
             src={logo}
             alt="BITECAST"
             style={{
-              width: '42vw',
+              width: '454px',
               height: 'auto',
               filter: 'invert(1)',
               display: 'block',
@@ -48,7 +48,7 @@ export function Scene5() {
         </motion.div>
 
         <motion.h1
-          className="text-[16vw] font-extrabold text-white tracking-[0.1em] uppercase"
+          className="text-[173px] font-extrabold text-white tracking-[0.1em] uppercase"
           initial={{ opacity: 0, scale: 0.9, letterSpacing: '0em' }}
           animate={{ opacity: 1, scale: 1, letterSpacing: '0.1em' }}
           transition={{ duration: 2, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
@@ -58,7 +58,7 @@ export function Scene5() {
         </motion.h1>
 
         <motion.p
-          className="text-[5vw] font-light text-white/60 tracking-wider"
+          className="text-[54px] font-light text-white/60 tracking-wider"
           initial={{ opacity: 0, y: 10 }}
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
           transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
