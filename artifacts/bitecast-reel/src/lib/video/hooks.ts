@@ -37,13 +37,21 @@ export function useVideoPlayer(options: UseVideoPlayerOptions): UseVideoPlayerRe
   const [currentScene, setCurrentScene] = useState(0);
   const [hasEnded, setHasEnded] = useState(false);
 
-  // Start recording on mount
+  // Gate scene advancement until startRecording resolves.
+  // If there's no startRecording (live preview), start immediately.
+  const [recordingReady, setRecordingReady] = useState(!window.startRecording);
+
   useEffect(() => {
-    window.startRecording?.();
+    if (!window.startRecording) {
+      setRecordingReady(true);
+      return;
+    }
+    window.startRecording().then(() => setRecordingReady(true));
   }, []);
 
-  // Scene advancement -- loops independently of recording
+  // Scene advancement -- only begins once recording is confirmed ready
   useEffect(() => {
+    if (!recordingReady) return;
     if (hasEnded && !loop) return;
 
     const currentDuration = durationsArray[currentScene];
@@ -65,7 +73,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions): UseVideoPlayerRe
     }, currentDuration);
 
     return () => clearTimeout(timer);
-  }, [currentScene, totalScenes, durationsArray, hasEnded, loop, onVideoEnd]);
+  }, [currentScene, totalScenes, durationsArray, hasEnded, loop, onVideoEnd, recordingReady]);
 
   return {
     currentScene,
