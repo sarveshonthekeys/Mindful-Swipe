@@ -46,7 +46,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions): UseVideoPlayerRe
       setRecordingReady(true);
       return;
     }
-    window.startRecording().then(() => setRecordingReady(true));
+    Promise.resolve(window.startRecording()).then(() => setRecordingReady(true));
   }, []);
 
   // Scene advancement -- only begins once recording is confirmed ready
