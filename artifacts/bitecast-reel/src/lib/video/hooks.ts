@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 
 declare global {
   interface Window {
-    startRecording?: () => Promise<void>;
+    startRecording?: () => Promise<void> | void;
     stopRecording?: () => void;
   }
 }
@@ -29,7 +29,6 @@ export interface UseVideoPlayerReturn {
 export function useVideoPlayer(options: UseVideoPlayerOptions): UseVideoPlayerReturn {
   const { durations, onVideoEnd, loop = true } = options;
 
-  // Captured once on mount -- durations must be a static object
   const sceneKeys = useRef(Object.keys(durations)).current;
   const totalScenes = sceneKeys.length;
   const durationsArray = useRef(Object.values(durations)).current;
@@ -37,40 +36,62 @@ export function useVideoPlayer(options: UseVideoPlayerOptions): UseVideoPlayerRe
   const [currentScene, setCurrentScene] = useState(0);
   const [hasEnded, setHasEnded] = useState(false);
 
-  // Gate scene advancement until startRecording resolves.
-  // If there's no startRecording (live preview), start immediately.
-  const [recordingReady, setRecordingReady] = useState(!window.startRecording);
+  // Always start paused. Poll for window.startRecording to be injected by
+  // the export tool. If it hasn't appeared within LIVE_PREVIEW_MS, assume
+  // we're in live-preview mode and start immediately.
+  const LIVE_PREVIEW_MS = 300;
+  const [recordingReady, setRecordingReady] = useState(false);
 
   useEffect(() => {
-    if (!window.startRecording) {
-      setRecordingReady(true);
-      return;
-    }
-    Promise.resolve(window.startRecording()).then(() => setRecordingReady(true));
+    let cancelled = false;
+    let rafId: number;
+    const deadline = performance.now() + LIVE_PREVIEW_MS;
+
+    const poll = () => {
+      if (cancelled) return;
+
+      if (typeof window.startRecording === 'function') {
+        // Export tool injected startRecording — call it and wait for ready signal
+        Promise.resolve(window.startRecording()).then(() => {
+          if (!cancelled) setRecordingReady(true);
+        });
+        return;
+      }
+
+      if (performance.now() >= deadline) {
+        // No recording tool found within timeout — live preview mode
+        setRecordingReady(true);
+        return;
+      }
+
+      rafId = requestAnimationFrame(poll);
+    };
+
+    rafId = requestAnimationFrame(poll);
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+    };
   }, []);
 
-  // Scene advancement -- only begins once recording is confirmed ready
+  // Scene advancement — only runs once recording is confirmed ready
   useEffect(() => {
     if (!recordingReady) return;
     if (hasEnded && !loop) return;
 
-    const currentDuration = durationsArray[currentScene];
-
     const timer = setTimeout(() => {
-      // Last scene just finished playing
       if (currentScene >= totalScenes - 1) {
         if (!hasEnded) {
           window.stopRecording?.();
           setHasEnded(true);
           onVideoEnd?.();
         }
-        if (loop) {
-          setCurrentScene(0);
-        }
+        if (loop) setCurrentScene(0);
       } else {
         setCurrentScene(prev => prev + 1);
       }
-    }, currentDuration);
+    }, durationsArray[currentScene]);
 
     return () => clearTimeout(timer);
   }, [currentScene, totalScenes, durationsArray, hasEnded, loop, onVideoEnd, recordingReady]);
@@ -96,17 +117,15 @@ export function useSceneTimer(events: Array<{ time: number; callback: () => void
   useEffect(() => {
     firedRef.current = new Set();
 
-    const timers = events.map(({ time }, index) => {
-      return setTimeout(() => {
+    const timers = events.map(({ time }, index) =>
+      setTimeout(() => {
         if (!firedRef.current.has(index)) {
           firedRef.current.add(index);
           callbacksRef.current[index]?.();
         }
-      }, time);
-    });
+      }, time)
+    );
 
-    return () => {
-      timers.forEach(timer => clearTimeout(timer));
-    };
+    return () => timers.forEach(clearTimeout);
   }, [scheduleKey]);
 }
