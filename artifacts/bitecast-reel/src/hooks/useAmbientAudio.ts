@@ -83,10 +83,11 @@ function scheduleSequence(ctx: AudioContext, dest: AudioNode, stopped: { v: bool
   if (stopped.v) return;
   const T = ctx.currentTime + 0.02;
 
-  // Gate — hard cut at 5s, reopen at 6s for music
+  // Gate — silent during scene1 (0–2s), then normal, hard cut at 5s, reopen at 6s for music
   const seq = ctx.createGain();
   seq.connect(dest);
-  seq.gain.setValueAtTime(1.0, T);
+  seq.gain.setValueAtTime(0.0, T);          // muted during scene1 (girl on phone)
+  seq.gain.setValueAtTime(1.0, T + 2.0);    // unmute after scene1 ends
   seq.gain.setValueAtTime(1.0, T + 4.999); // hold full until last sample
   seq.gain.setValueAtTime(0.0, T + 5.0);   // hard cut
   seq.gain.setValueAtTime(1.0, T + 6.0);   // music begins
