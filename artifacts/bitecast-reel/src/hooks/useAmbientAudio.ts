@@ -11,21 +11,30 @@ function noise(ctx: AudioContext, dur: number): AudioBuffer {
 }
 
 /**
- * Natural phone swipe — filtered noise shaped like a finger dragging on glass.
- * Consistent volume, no variation.
+ * Smooth phone swipe — soft noise arc shaped like a slow finger drag across glass.
+ * Bandpass centred at 1400 Hz for natural glass-friction texture, gentle attack,
+ * sustained body, and a long smooth exponential tail.
  */
-function playSwipe(ctx: AudioContext, dest: AudioNode, t: number) {
+function playSwipe(ctx: AudioContext, dest: AudioNode, t: number, vol = 0.13) {
+  const dur = 0.20;
   const src = ctx.createBufferSource();
-  src.buffer = noise(ctx, 0.075);
-  const lpf = ctx.createBiquadFilter();
-  lpf.type = 'lowpass'; lpf.frequency.value = 2600; lpf.Q.value = 0.9;
-  const hpf = ctx.createBiquadFilter();
-  hpf.type = 'highpass'; hpf.frequency.value = 550;
+  src.buffer = noise(ctx, dur);
+
+  // Bandpass for glass-swipe texture — avoids harsh highs and muddy lows
+  const bpf = ctx.createBiquadFilter();
+  bpf.type = 'bandpass'; bpf.frequency.value = 1400; bpf.Q.value = 1.1;
+
+  // High-shelf cut to soften the top end further
+  const hsh = ctx.createBiquadFilter();
+  hsh.type = 'highshelf'; hsh.frequency.value = 3000; hsh.gain.value = -9;
+
   const env = ctx.createGain();
   env.gain.setValueAtTime(0, t);
-  env.gain.linearRampToValueAtTime(0.17, t + 0.007);
-  env.gain.exponentialRampToValueAtTime(0.001, t + 0.075);
-  src.connect(lpf); lpf.connect(hpf); hpf.connect(env); env.connect(dest);
+  env.gain.linearRampToValueAtTime(vol, t + 0.016);         // soft attack
+  env.gain.linearRampToValueAtTime(vol * 0.55, t + 0.085); // settle into body
+  env.gain.exponentialRampToValueAtTime(0.001, t + dur);    // long smooth tail
+
+  src.connect(bpf); bpf.connect(hsh); hsh.connect(env); env.connect(dest);
   src.start(t);
 }
 
@@ -74,7 +83,8 @@ function playCinematicImpact(ctx: AudioContext, dest: AudioNode, t: number) {
 
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 //
-//  0–5s    Evenly spaced swipe sounds (8 swipes, every ~0.62s)
+//  0–2s    Scene1: 3 smooth swipe sounds aligned with scrolling-phone video
+//  2–5s    Silence (no scrolling video, no swipes)
 //  5–6s    Instant hard cut — complete silence
 //  6–15s   Soft piano melody in D minor + low ambient pad
 //  10s     Single cinematic impact (logo reveal)
@@ -83,20 +93,19 @@ function scheduleSequence(ctx: AudioContext, dest: AudioNode, stopped: { v: bool
   if (stopped.v) return;
   const T = ctx.currentTime + 0.02;
 
-  // Gate — silent during scene1 (0–2s), then normal, hard cut at 5s, reopen at 6s for music
+  // Gate — audible during scene1 (0–2s), silent 2–5s, hard cut 5s, music from 6s
   const seq = ctx.createGain();
   seq.connect(dest);
-  seq.gain.setValueAtTime(0.0, T);          // muted during scene1 (girl on phone)
-  seq.gain.setValueAtTime(1.0, T + 2.0);    // unmute after scene1 ends
-  seq.gain.setValueAtTime(1.0, T + 4.999); // hold full until last sample
-  seq.gain.setValueAtTime(0.0, T + 5.0);   // hard cut
+  seq.gain.setValueAtTime(1.0, T);          // scene1: swipes audible
+  seq.gain.setValueAtTime(0.0, T + 2.0);    // scene1 ends — cut swipes
+  seq.gain.setValueAtTime(0.0, T + 4.999);
+  seq.gain.setValueAtTime(0.0, T + 5.0);   // hard cut (already silent)
   seq.gain.setValueAtTime(1.0, T + 6.0);   // music begins
 
-  // ── 0–5s: evenly spaced swipes ────────────────────────────────────────────
-  const INTERVAL = 0.625; // 8 swipes in 5s
-  for (let t = 0.15; t < 4.95; t += INTERVAL) {
-    playSwipe(ctx, seq, T + t);
-  }
+  // ── 0–2s: 3 smooth swipes timed to the scrolling-phone video ─────────────
+  playSwipe(ctx, seq, T + 0.25);  // first scroll
+  playSwipe(ctx, seq, T + 0.90);  // second scroll
+  playSwipe(ctx, seq, T + 1.55);  // third scroll
 
   // ── 6–15s: soft piano melody (D minor arpeggio, slow ~0.88s per note) ────
   // D4=293.66  F4=349.23  A4=440.00  C5=523.25
