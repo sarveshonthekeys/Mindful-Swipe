@@ -176,25 +176,36 @@ export function useAmbientAudio() {
     function startSounds() {
       if (soundsStarted || stopped.v) return;
       soundsStarted = true;
-      scheduleSequence(ctx, comp, stopped);
+      ctx.resume().then(() => {
+        if (!stopped.v) scheduleSequence(ctx, comp, stopped);
+      }).catch(() => {});
     }
 
-    // Resume immediately — works in headless/export environments where
-    // autoplay policy is relaxed, and AudioContext starts suspended.
-    ctx.resume().then(() => startSounds()).catch(() => {});
+    // Sync audio start with recording start:
+    // Poll at ~60fps for window.startRecording to appear (export mode).
+    // If not found within 310ms (just after hooks.ts LIVE_PREVIEW_MS=300ms),
+    // start anyway for live preview mode.
+    let syncTimer: ReturnType<typeof setTimeout>;
+    const syncInterval = setInterval(() => {
+      if (typeof window.startRecording === 'function') {
+        clearInterval(syncInterval);
+        clearTimeout(syncTimer);
+        startSounds();
+      }
+    }, 16);
 
-    // Fallback: retry after 60ms in case the initial resume was blocked.
-    setTimeout(() => {
-      ctx.resume().then(() => startSounds()).catch(() => {});
-    }, 60);
+    syncTimer = setTimeout(() => {
+      clearInterval(syncInterval);
+      startSounds();
+    }, 310);
 
-    // Also resume on user interaction for normal browser preview.
-    const onInteraction = () => {
-      ctx.resume().then(() => startSounds()).catch(() => {});
-    };
+    // Also start on user interaction for normal browser preview.
+    const onInteraction = () => startSounds();
     window.addEventListener('pointerdown', onInteraction, { once: true });
 
     return () => {
+      clearInterval(syncInterval);
+      clearTimeout(syncTimer);
       window.removeEventListener('pointerdown', onInteraction);
       stopped.v = true;
       delete window.__audioStream;

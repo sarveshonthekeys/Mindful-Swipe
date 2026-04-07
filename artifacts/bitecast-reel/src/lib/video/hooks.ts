@@ -52,7 +52,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions): UseVideoPlayerRe
 
       if (typeof window.startRecording === 'function') {
         // Export tool injected startRecording — call it and wait for ready signal
-        Promise.resolve(window.startRecording()).then(() => {
+        Promise.resolve(window.startRecording?.()).then(() => {
           if (!cancelled) setRecordingReady(true);
         });
         return;
