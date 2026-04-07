@@ -154,35 +154,51 @@ function scheduleSequence(ctx: AudioContext, dest: AudioNode, stopped: { v: bool
 
 export function useAmbientAudio() {
   useEffect(() => {
-    let ctx: AudioContext | null = null;
     const stopped = { v: false };
+    let soundsStarted = false;
 
-    function init() {
-      if (ctx) return;
-      ctx = new AudioContext();
-      const comp = ctx.createDynamicsCompressor();
-      comp.threshold.value = -14; comp.ratio.value = 3; comp.knee.value = 12;
+    // Create AudioContext immediately so window.__audioStream is exposed
+    // before the export tool's startRecording is called (which happens
+    // within ~300ms of mount via useVideoPlayer's polling loop).
+    const ctx = new AudioContext();
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -14; comp.ratio.value = 3; comp.knee.value = 12;
 
-      // Route audio to device speakers (live playback)
-      comp.connect(ctx.destination);
+    // Live playback
+    comp.connect(ctx.destination);
 
-      // Also route to a MediaStreamDestination so the export recorder
-      // can capture the audio and mux it into the exported video file.
-      const recordingDest = ctx.createMediaStreamDestination();
-      comp.connect(recordingDest);
-      window.__audioStream = recordingDest.stream;
+    // Recording capture — exposed globally so the export pipeline can merge
+    // this audio stream with the canvas video track.
+    const recordingDest = ctx.createMediaStreamDestination();
+    comp.connect(recordingDest);
+    window.__audioStream = recordingDest.stream;
 
+    function startSounds() {
+      if (soundsStarted || stopped.v) return;
+      soundsStarted = true;
       scheduleSequence(ctx, comp, stopped);
     }
 
-    const onInteraction = () => init();
-    setTimeout(() => { try { init(); } catch { /* autoplay blocked — wait for tap */ } }, 60);
+    // Resume immediately — works in headless/export environments where
+    // autoplay policy is relaxed, and AudioContext starts suspended.
+    ctx.resume().then(() => startSounds()).catch(() => {});
+
+    // Fallback: retry after 60ms in case the initial resume was blocked.
+    setTimeout(() => {
+      ctx.resume().then(() => startSounds()).catch(() => {});
+    }, 60);
+
+    // Also resume on user interaction for normal browser preview.
+    const onInteraction = () => {
+      ctx.resume().then(() => startSounds()).catch(() => {});
+    };
     window.addEventListener('pointerdown', onInteraction, { once: true });
 
     return () => {
       window.removeEventListener('pointerdown', onInteraction);
       stopped.v = true;
-      setTimeout(() => { ctx?.close(); }, 200);
+      delete window.__audioStream;
+      setTimeout(() => { ctx.close(); }, 200);
     };
   }, []);
 }
