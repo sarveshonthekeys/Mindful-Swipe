@@ -1,5 +1,11 @@
 import { useEffect } from 'react';
 
+declare global {
+  interface Window {
+    __audioStream?: MediaStream;
+  }
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function noise(ctx: AudioContext, dur: number): AudioBuffer {
@@ -156,7 +162,16 @@ export function useAmbientAudio() {
       ctx = new AudioContext();
       const comp = ctx.createDynamicsCompressor();
       comp.threshold.value = -14; comp.ratio.value = 3; comp.knee.value = 12;
+
+      // Route audio to device speakers (live playback)
       comp.connect(ctx.destination);
+
+      // Also route to a MediaStreamDestination so the export recorder
+      // can capture the audio and mux it into the exported video file.
+      const recordingDest = ctx.createMediaStreamDestination();
+      comp.connect(recordingDest);
+      window.__audioStream = recordingDest.stream;
+
       scheduleSequence(ctx, comp, stopped);
     }
 
