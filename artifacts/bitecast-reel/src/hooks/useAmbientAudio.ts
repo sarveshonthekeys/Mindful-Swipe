@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 declare global {
   interface Window {
     __audioStream?: MediaStream;
+    __bitecastAudio?: { ctx: AudioContext; comp: AudioNode };
   }
 }
 
@@ -157,21 +158,20 @@ export function useAmbientAudio() {
     const stopped = { v: false };
     let soundsStarted = false;
 
-    // Create AudioContext immediately so window.__audioStream is exposed
-    // before the export tool's startRecording is called (which happens
-    // within ~300ms of mount via useVideoPlayer's polling loop).
-    const ctx = new AudioContext();
-    const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -14; comp.ratio.value = 3; comp.knee.value = 12;
-
-    // Live playback
-    comp.connect(ctx.destination);
-
-    // Recording capture — exposed globally so the export pipeline can merge
-    // this audio stream with the canvas video track.
-    const recordingDest = ctx.createMediaStreamDestination();
-    comp.connect(recordingDest);
-    window.__audioStream = recordingDest.stream;
+    // Reuse the AudioContext pre-created in index.html's inline script so that
+    // window.__audioStream is available before the export tool initialises —
+    // otherwise the stream may not be picked up in time.
+    const pre = window.__bitecastAudio;
+    const ctx  = pre ? pre.ctx  : new AudioContext();
+    const comp = pre ? pre.comp : (() => {
+      const c = ctx.createDynamicsCompressor();
+      c.threshold.value = -14; c.ratio.value = 3; c.knee.value = 12;
+      c.connect(ctx.destination);
+      const rd = ctx.createMediaStreamDestination();
+      c.connect(rd);
+      window.__audioStream = rd.stream;
+      return c;
+    })();
 
     function startSounds() {
       if (soundsStarted || stopped.v) return;
@@ -208,8 +208,11 @@ export function useAmbientAudio() {
       clearTimeout(syncTimer);
       window.removeEventListener('pointerdown', onInteraction);
       stopped.v = true;
-      delete window.__audioStream;
-      setTimeout(() => { ctx.close(); }, 200);
+      // Only close ctx if we created it ourselves (not the shared pre-init one)
+      if (!pre) {
+        delete window.__audioStream;
+        setTimeout(() => { ctx.close(); }, 200);
+      }
     };
   }, []);
 }

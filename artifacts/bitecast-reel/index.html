@@ -19,6 +19,30 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!--
+      Pre-create AudioContext and expose window.__audioStream synchronously,
+      before React mounts and before the Replit export tool initialises.
+      This guarantees the stream is available when startRecording is set up.
+    -->
+    <script>
+      try {
+        (function () {
+          var ctx = new AudioContext();
+          var comp = ctx.createDynamicsCompressor();
+          comp.threshold.value = -14;
+          comp.ratio.value = 3;
+          comp.knee.value = 12;
+          comp.connect(ctx.destination);
+          var dest = ctx.createMediaStreamDestination();
+          comp.connect(dest);
+          window.__audioStream = dest.stream;
+          window.__bitecastAudio = { ctx: ctx, comp: comp };
+        })();
+      } catch (e) {
+        console.warn('[bitecast] audio pre-init failed:', e);
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
