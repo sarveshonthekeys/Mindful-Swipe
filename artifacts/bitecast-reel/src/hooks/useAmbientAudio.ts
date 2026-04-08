@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 declare global {
   interface Window {
-    __audioStream?: MediaStream;
+    audioStream?: MediaStream;
     __bitecastAudio?: { ctx: AudioContext; comp: AudioNode };
   }
 }
@@ -159,8 +159,7 @@ export function useAmbientAudio() {
     let soundsStarted = false;
 
     // Reuse the AudioContext pre-created in index.html's inline script so that
-    // window.__audioStream is available before the export tool initialises —
-    // otherwise the stream may not be picked up in time.
+    // window.audioStream is available before any recorder initialises.
     const pre = window.__bitecastAudio;
     const ctx  = pre ? pre.ctx  : new AudioContext();
     const comp = pre ? pre.comp : (() => {
@@ -169,7 +168,7 @@ export function useAmbientAudio() {
       c.connect(ctx.destination);
       const rd = ctx.createMediaStreamDestination();
       c.connect(rd);
-      window.__audioStream = rd.stream;
+      window.audioStream = rd.stream;
       return c;
     })();
 
@@ -210,7 +209,7 @@ export function useAmbientAudio() {
       stopped.v = true;
       // Only close ctx if we created it ourselves (not the shared pre-init one)
       if (!pre) {
-        delete window.__audioStream;
+        delete window.audioStream;
         setTimeout(() => { ctx.close(); }, 200);
       }
     };

@@ -2,6 +2,7 @@ import { AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useVideoPlayer } from '@/lib/video';
 import { useAmbientAudio } from '@/hooks/useAmbientAudio';
+import { useRecorder } from '@/hooks/useRecorder';
 import { Grain } from './Grain';
 import { Scene1 } from './video_scenes/Scene1';
 import { Scene2 } from './video_scenes/Scene2';
@@ -20,9 +21,26 @@ const SCENE_DURATIONS = {
   scene5: 5000,
 };
 
+const btnStyle: React.CSSProperties = {
+  position: 'fixed',
+  bottom: 24,
+  right: 24,
+  zIndex: 9999,
+  padding: '10px 20px',
+  borderRadius: 8,
+  border: 'none',
+  cursor: 'pointer',
+  fontSize: 14,
+  fontWeight: 600,
+  letterSpacing: '0.04em',
+  fontFamily: 'system-ui, sans-serif',
+  transition: 'opacity 0.2s',
+};
+
 export default function VideoTemplate() {
   const { currentScene } = useVideoPlayer({ durations: SCENE_DURATIONS });
   useAmbientAudio();
+  const { state, start, stop } = useRecorder();
 
   const [scale, setScale] = useState(() =>
     Math.min(window.innerWidth / CANVAS_W, window.innerHeight / CANVAS_H)
@@ -34,6 +52,9 @@ export default function VideoTemplate() {
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
+
+  const isRecording = state === 'recording';
+  const isSaving   = state === 'saving';
 
   return (
     <div
@@ -69,6 +90,20 @@ export default function VideoTemplate() {
 
         <Grain opacity={0.04} />
       </div>
+
+      {/* Record button — outside the video canvas, fixed to viewport */}
+      <button
+        onClick={isRecording ? stop : start}
+        disabled={isSaving}
+        style={{
+          ...btnStyle,
+          background: isSaving ? '#444' : isRecording ? '#cc2200' : '#ffffff',
+          color:      isSaving ? '#aaa' : isRecording ? '#ffffff' : '#000000',
+          opacity:    isSaving ? 0.7 : 1,
+        }}
+      >
+        {isSaving ? 'Saving…' : isRecording ? '⏹ Stop (auto at 15 s)' : '⏺ Record'}
+      </button>
     </div>
   );
 }

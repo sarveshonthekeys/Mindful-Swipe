@@ -36,7 +36,7 @@
           comp.connect(ctx.destination);
           var dest = ctx.createMediaStreamDestination();
           comp.connect(dest);
-          window.__audioStream = dest.stream;
+          window.audioStream = dest.stream;
           window.__bitecastAudio = { ctx: ctx, comp: comp };
         })();
       } catch (e) {
