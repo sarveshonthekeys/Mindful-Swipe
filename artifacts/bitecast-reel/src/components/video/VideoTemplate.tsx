@@ -39,8 +39,8 @@ const btnStyle: React.CSSProperties = {
 
 export default function VideoTemplate() {
   const { currentScene } = useVideoPlayer({ durations: SCENE_DURATIONS });
-  useAmbientAudio();
-  const { state, start, stop } = useRecorder();
+  const { restart: restartAudio } = useAmbientAudio();
+  const { state, start, stop } = useRecorder({ onBeforeStart: restartAudio });
 
   const [scale, setScale] = useState(() =>
     Math.min(window.innerWidth / CANVAS_W, window.innerHeight / CANVAS_H)

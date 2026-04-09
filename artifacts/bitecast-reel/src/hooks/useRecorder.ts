@@ -10,7 +10,14 @@ const VIDEO_DURATION_MS = 15_000; // full reel: 2+4+1+3+5 seconds
 
 export type RecordingState = 'idle' | 'recording' | 'saving';
 
-export function useRecorder() {
+interface UseRecorderOptions {
+  /** Called the moment the user confirms the screen-share dialog, right before
+   *  recording starts. Use this to restart audio so it is guaranteed to begin
+   *  at beat-0 in sync with the video. */
+  onBeforeStart?: () => void;
+}
+
+export function useRecorder({ onBeforeStart }: UseRecorderOptions = {}) {
   const [state, setState] = useState<RecordingState>('idle');
   const recorderRef = useRef<MediaRecorder | null>(null);
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -24,6 +31,10 @@ export function useRecorder() {
         video: { frameRate: 60 },
         audio: false,
       });
+
+      // User confirmed the tab — restart audio so it starts at beat-0 together
+      // with the next video loop (or as close as possible).
+      onBeforeStart?.();
 
       // Pull the audio track from the Web Audio MediaStreamDestination
       const audioTracks = window.audioStream?.getAudioTracks() ?? [];
@@ -71,7 +82,7 @@ export function useRecorder() {
       console.warn('[bitecast] recording failed:', err);
       setState('idle');
     }
-  }, [state]);
+  }, [state, onBeforeStart]);
 
   const stop = useCallback(() => {
     if (stopTimerRef.current) {

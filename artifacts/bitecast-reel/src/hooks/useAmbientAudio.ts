@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 declare global {
   interface Window {
     audioStream?: MediaStream;
-    __bitecastAudio?: { ctx: AudioContext; comp: AudioNode };
+    __bitecastAudio?: { ctx: AudioContext; comp: AudioNode; master?: GainNode };
   }
 }
 
@@ -96,9 +96,21 @@ function playCinematicImpact(ctx: AudioContext, dest: AudioNode, t: number) {
 //  6–15s   Soft piano melody in D minor + low ambient pad
 //  10s     Single cinematic impact (logo reveal)
 //
-function scheduleSequence(ctx: AudioContext, dest: AudioNode, stopped: { v: boolean }) {
+// Video cycle is exactly 15 000 ms. Audio must loop at the same period so they
+// never drift. Each call receives the absolute ctx-time when this cycle starts
+// and schedules the next call for exactly 15.0 s later.
+const CYCLE_S = 15.0;
+
+function scheduleSequence(
+  ctx: AudioContext,
+  dest: AudioNode,
+  stopped: { v: boolean },
+  cycleStart?: number,   // absolute AudioContext time for beat-0 of this cycle
+) {
   if (stopped.v) return;
-  const T = ctx.currentTime + 0.02;
+
+  // First call: start ~20 ms from now.  Subsequent calls: exactly on the beat.
+  const T = cycleStart ?? (ctx.currentTime + 0.02);
 
   // Gate — audible during scene1 (0–2s), silent 2–5s, hard cut 5s, music from 6s
   const seq = ctx.createGain();
@@ -106,8 +118,8 @@ function scheduleSequence(ctx: AudioContext, dest: AudioNode, stopped: { v: bool
   seq.gain.setValueAtTime(1.0, T);          // scene1: swipes audible
   seq.gain.setValueAtTime(0.0, T + 2.0);    // scene1 ends — cut swipes
   seq.gain.setValueAtTime(0.0, T + 4.999);
-  seq.gain.setValueAtTime(0.0, T + 5.0);   // hard cut (already silent)
-  seq.gain.setValueAtTime(1.0, T + 6.0);   // music begins
+  seq.gain.setValueAtTime(0.0, T + 5.0);    // hard cut (already silent)
+  seq.gain.setValueAtTime(1.0, T + 6.0);    // music begins
 
   // ── 0–2s: 3 smooth swipes timed to the scrolling-phone video ─────────────
   playSwipe(ctx, seq, T + 0.25);  // first scroll
@@ -125,49 +137,59 @@ function scheduleSequence(ctx: AudioContext, dest: AudioNode, stopped: { v: bool
   melody.forEach(([dt, freq]) => playNote(ctx, seq, T + 6.0 + dt, freq, 0.10));
 
   // ── Low ambient pad underneath — bypasses seq gate ────────────────────────
-  // Holds steady across the music section without being cut by the gate
   const padLpf = ctx.createBiquadFilter();
   padLpf.type = 'lowpass'; padLpf.frequency.value = 520; padLpf.Q.value = 1.2;
   const padGain = ctx.createGain();
   padGain.gain.setValueAtTime(0, T + 6.0);
-  padGain.gain.linearRampToValueAtTime(0.022, T + 7.8);  // gentle fade in
-  padGain.gain.linearRampToValueAtTime(0.016, T + 14.9); // settle
-  // D minor chord voicing: D2, A2, F3
+  padGain.gain.linearRampToValueAtTime(0.022, T + 7.8);
+  padGain.gain.linearRampToValueAtTime(0.016, T + 14.9);
   [[73.42, 'triangle'], [110.0, 'sine'], [174.61, 'sine']].forEach(([f, type]) => {
     const osc = ctx.createOscillator();
     osc.type = type as OscillatorType; osc.frequency.value = f as number;
     osc.connect(padLpf);
-    osc.start(T + 6.0); osc.stop(T + 15.1);
+    osc.start(T + 6.0); osc.stop(T + CYCLE_S + 0.1);
   });
   padLpf.connect(padGain);
-  padGain.connect(dest); // direct to dest — unaffected by the hard-cut gate
+  padGain.connect(dest);
 
   // ── 10s: cinematic impact ─────────────────────────────────────────────────
   playCinematicImpact(ctx, seq, T + 10.0);
 
-  // ── Loop ──────────────────────────────────────────────────────────────────
+  // ── Loop — schedule next cycle to start at EXACTLY T + CYCLE_S ───────────
+  // Fire the timeout 100 ms early so notes are pre-scheduled before the beat.
+  const nextCycleStart = T + CYCLE_S;
+  const msUntilFire = (nextCycleStart - ctx.currentTime) * 1000 - 100;
   setTimeout(() => {
-    if (!stopped.v && ctx.state !== 'closed') scheduleSequence(ctx, dest, stopped);
-  }, 14820);
+    if (!stopped.v && ctx.state !== 'closed') {
+      scheduleSequence(ctx, dest, stopped, nextCycleStart);
+    }
+  }, Math.max(msUntilFire, 0));
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAmbientAudio() {
+  // stoppedRef lets the outer restart() reach into the current sequence.
+  const stoppedRef = useRef<{ v: boolean }>({ v: false });
+
   useEffect(() => {
     const stopped = { v: false };
+    stoppedRef.current = stopped;
     let soundsStarted = false;
 
-    // Reuse the AudioContext pre-created in index.html's inline script so that
-    // window.audioStream is available before any recorder initialises.
+    // Reuse the AudioContext + compressor pre-created in index.html's inline
+    // script so that window.audioStream is ready before any recorder initialises.
     const pre = window.__bitecastAudio;
-    const ctx  = pre ? pre.ctx  : new AudioContext();
-    const comp = pre ? pre.comp : (() => {
+    const ctx    = pre ? pre.ctx    : new AudioContext();
+    const master = pre?.master;                // may be undefined on first load
+    const comp   = pre ? pre.comp : (() => {
       const c = ctx.createDynamicsCompressor();
       c.threshold.value = -14; c.ratio.value = 3; c.knee.value = 12;
-      c.connect(ctx.destination);
+      const m = ctx.createGain();
+      c.connect(m);
+      m.connect(ctx.destination);
       const rd = ctx.createMediaStreamDestination();
-      c.connect(rd);
+      m.connect(rd);
       window.audioStream = rd.stream;
       return c;
     })();
@@ -207,11 +229,50 @@ export function useAmbientAudio() {
       clearTimeout(syncTimer);
       window.removeEventListener('pointerdown', onInteraction);
       stopped.v = true;
-      // Only close ctx if we created it ourselves (not the shared pre-init one)
+      // Fade out master so in-flight notes don't click when the hook restarts.
+      if (master) {
+        master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
+        master.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.04);
+      }
+      // Only close ctx if we created it ourselves (not the shared pre-init one).
       if (!pre) {
         delete window.audioStream;
         setTimeout(() => { ctx.close(); }, 200);
       }
     };
   }, []);
+
+  // restart() silences in-flight notes immediately, then after a 60 ms window
+  // the master gain is restored and a fresh sequence fires from beat-0.
+  const restart = useCallback(() => {
+    const pre = window.__bitecastAudio;
+    if (!pre) return;
+    const { ctx, comp, master } = pre;
+
+    // Stop the current loop from scheduling more cycles.
+    stoppedRef.current.v = true;
+
+    if (master && ctx.state !== 'closed') {
+      // Instantly mute so old scheduled oscillators go silent.
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setValueAtTime(0, ctx.currentTime);
+
+      // After 60 ms all old notes are inaudible; restore gain and start fresh.
+      setTimeout(() => {
+        if (ctx.state === 'closed') return;
+        const newStopped = { v: false };
+        stoppedRef.current = newStopped;
+        master.gain.setValueAtTime(0, ctx.currentTime);
+        master.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.04);
+        scheduleSequence(ctx, comp, newStopped);
+      }, 60);
+    } else {
+      // Fallback: no master gain — just schedule fresh sequence over old one.
+      const newStopped = { v: false };
+      stoppedRef.current = newStopped;
+      if (ctx.state !== 'closed') scheduleSequence(ctx, comp, newStopped);
+    }
+  }, []);
+
+  return { restart };
 }

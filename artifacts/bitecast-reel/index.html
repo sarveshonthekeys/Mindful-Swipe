@@ -33,11 +33,15 @@
           comp.threshold.value = -14;
           comp.ratio.value = 3;
           comp.knee.value = 12;
-          comp.connect(ctx.destination);
+          // masterGain sits between comp and destinations so a restart can
+          // instantly mute all in-flight notes before scheduling new ones.
+          var master = ctx.createGain();
+          comp.connect(master);
+          master.connect(ctx.destination);
           var dest = ctx.createMediaStreamDestination();
-          comp.connect(dest);
+          master.connect(dest);
           window.audioStream = dest.stream;
-          window.__bitecastAudio = { ctx: ctx, comp: comp };
+          window.__bitecastAudio = { ctx: ctx, comp: comp, master: master };
         })();
       } catch (e) {
         console.warn('[bitecast] audio pre-init failed:', e);
